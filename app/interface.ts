@@ -1,0 +1,1 @@
+export type UserRole = 'student' | 'teacher' | 'superadmin'|'admission_officer'|'finance_officer'|'transcript_officer'|'course_validator'|'registrar_officer'|'department_admin'
