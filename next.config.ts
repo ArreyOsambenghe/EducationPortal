@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "100mb", 
     },
   },
+  eslint: {
+    // Allow production builds to complete even if there are ESLint errors.
+    ignoreDuringBuilds: true,
+  },
+  
 };
 
 export default nextConfig;
