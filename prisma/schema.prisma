@@ -1,0 +1,1025 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id          String     @id @default(cuid())
+  firstName   String
+  lastName    String
+  phoneNumber String
+  email       String     @unique
+  password    String
+  role        UserRole
+  dof         String
+  sex         String
+  nationality String
+  address     String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  files       UserFile[]
+  status      String     @default("active")
+  registratioProcess String @default("pending")
+}
+
+model Teacher {
+  id          String     @id @default(cuid())
+  firstName   String
+  lastName    String
+  phoneNumber String
+  email       String     @unique
+  password    String
+  dof         String
+  sex         String
+  nationality String
+  address     String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  files       UserFile[]
+  semesterCourse SemesterCourse[]
+  calendarEvents CalendarEvent[]
+  status      String     @default("active")
+  registratioProcess String @default("pending")
+  discussionGroupMemberships DiscussionGroupMembership[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages Message[] @relation("SenderTeacher")
+  messageReadReceipts MessageReadReceipt[] @relation("ReaderTeacher")
+}
+
+model Student {
+  id                      String     @id @default(cuid())
+  firstName               String
+  lastName                String
+  phoneNumber             String?
+  email                   String     @unique
+  matriculationNumber     String? @unique
+  password                String
+  dof                     String
+  sex                     String
+  programId               String?
+  program                 Program?   @relation(fields: [programId], references: [id])
+  nationality             String
+  address                 String?
+  previousSchool          String?
+  previousSchoolAddress   String?
+  moreAboutYourself       String?
+  GCEAdvancedLevelResult  String?
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+  admisionRequestDocument UserFile[]
+  status                  String     @default("active")
+  registratioProcess String @default("pending")
+  discussionGroupMemberships DiscussionGroupMembership[]
+  conversationParticipants ConversationParticipant[]
+  sentMessages Message[] @relation("SenderStudent")
+  messageReadReceipts MessageReadReceipt[] @relation("ReaderStudent")
+  enrollments StudentEnrollment[]
+  assignmentSubmissions AssignmentSubmission[]
+  examSubmissions ExamSubmission[]
+  courseGrades CourseGrade[]
+  attendanceRecords CourseAttendance[]
+}
+
+enum UserRole {
+  admin
+  teacher
+  student
+  superadmin
+  admission_officer
+  finance_officer
+  transcript_officer
+  course_validator
+  registrar_officer
+  department_admin
+}
+
+model File {
+  id        String     @id @default(cuid())
+  fileName      String
+  originalName String
+  extension String
+  fileUrl       String
+  type      String
+  size      Int
+  fileType  FileType?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  UserFiles UserFile[]
+  courseMaterials CourseMaterial[]
+  courseUploads CourseUpload[]
+  messageAttachments MessageAttachment[]
+  examSubmissionFiles ExamSubmissionFile[]
+  assignmentSubmissionFiles AssignmentSubmissionFile[]
+}
+
+model UserFile {
+  id        String   @id @default(cuid())
+  adminId   String?
+  teacherId String?
+  studentId String?
+  fileId    String
+  use       FileUses
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  verify    Boolean @default(false)
+
+  admin   Admin?    @relation(fields: [adminId], references: [id])
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
+  student Student? @relation(fields: [studentId], references: [id])
+
+  file File @relation(fields: [fileId], references: [id])
+}
+
+enum FileType {
+  document
+  image
+  video
+  audio
+}
+
+enum FileUses {
+  profile_picture
+  course_material
+  assignment
+  transcript
+  cv
+  certificate
+  admission_letter
+  admission_document
+  other
+}
+
+model Program{
+  id String @id @default(cuid())
+  name String
+  description String?
+  status String @default("active")
+  code String @unique
+  slug String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  students Student[]
+  levels Level[]
+}
+
+model Level{
+  id String @id @default(cuid())
+  name String
+  description String?
+  status String @default("active")
+  code String @unique
+  slug String @unique
+  programId String
+  program Program @relation(fields: [programId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  semesters Semester[]
+}
+
+model Semester{
+  id String @id @default(cuid())
+  name String
+  description String?
+  levelId String
+  status String @default("active")
+  code String @unique
+  slug String @unique 
+  level Level @relation(fields: [levelId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AISession {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  title     String?   
+  messages  AIMessage[]
+
+  aiType AITYPE
+  previousSessionId String? @unique
+  prevSession AISession? @relation("SessionToPrevSession", fields: [previousSessionId], references: [id])
+  nextSession AISession? @relation("SessionToPrevSession")
+}
+
+enum AITYPE {
+  ACADEMIC
+  DEPARTMENT
+  SCHEDULE
+  STUDENTADMIT
+  REPORT
+}
+
+model AIMessage {
+  id          String       @id @default(cuid())
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  role        String       
+  content     String?      
+
+  functionCall        FunctionCall[]       
+  functionResponse    FunctionResponse[]   
+
+  sessionId   String
+  session     AISession   @relation(fields: [sessionId], references: [id])
+}
+
+model FunctionCall {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  name        String   
+  args        Json     
+
+  messageId   String   
+  message     AIMessage @relation(fields: [messageId], references: [id])
+  functionResponse FunctionResponse?
+}
+
+model FunctionResponse {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  name        String   
+  response    Json     
+  functionCallId String @unique
+  functionCall FunctionCall @relation(fields: [functionCallId], references: [id])
+  messageId   String   
+  message     AIMessage @relation(fields: [messageId], references: [id])
+}
+
+model Department{
+  id String @id @default(cuid())
+  name String
+  slug String @unique
+  departmentHeadName String?
+  departmentHeadEmail String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  courses Course[]
+}
+
+model Course{
+  id String @unique @id @default(cuid())
+  name String
+  code String
+  courseExtras String? 
+  departmentId String
+  department Department @relation(fields: [departmentId],references: [id])
+  courseInfo String
+  credits Int
+  semesterCourse SemesterCourse[]
+  status String @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SemesterCourse{
+  id String @id @default(cuid())
+  courseId String
+  course Course @relation(fields: [courseId], references: [id])
+  instructorId String
+  instructor Teacher @relation(fields: [instructorId],references: [id])
+  
+  // Additional fields for course management
+  semester String
+  schedule String
+  room String
+  enrolledStudents Int @default(0)
+  status CourseStatus @default(ACTIVE)
+  description String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  syllabusItems CourseSyllabus[]
+  materials CourseMaterial[]
+  assignments CourseAssignment[]
+  announcements CourseAnnouncement[]
+  uploads CourseUpload[]
+  calendarEvents CalendarEvent[]
+  discussionGroup DiscussionGroup?
+  enrollments StudentEnrollment[]
+  exams CourseExam[]
+  courseGrades CourseGrade[]
+  attendanceRecords CourseAttendance[]
+}
+
+enum CourseStatus {
+  ACTIVE
+  COMPLETED
+  UPCOMING
+  DRAFT
+}
+
+// New CalendarEvent model
+model CalendarEvent {
+  id String @id @default(cuid())
+  title String
+  description String?
+  date DateTime
+  time String
+  type CalendarEventType
+  priority EventPriority @default(MEDIUM)
+  location String?
+  duration Int? // Duration in minutes
+  recurring EventRecurrence @default(NONE)
+  status EventStatus @default(SCHEDULED)
+  
+  // Relations
+  teacherId String?
+  teacher Teacher? @relation(fields: [teacherId], references: [id])
+  
+  semesterCourseId String?
+  semesterCourse SemesterCourse? @relation(fields: [semesterCourseId], references: [id])
+  
+  // Optional metadata
+  metadata Json? // For storing additional event-specific data
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([date, status])
+  @@index([teacherId])
+  @@index([semesterCourseId])
+}
+
+enum CalendarEventType {
+  CLASS
+  EXAM
+  ASSIGNMENT
+  ANNOUNCEMENT
+  OFFICE_HOURS
+  HOLIDAY
+  MEETING
+  DEADLINE
+  WORKSHOP
+  SEMINAR
+}
+
+enum EventPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EventRecurrence {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum EventStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  RESCHEDULED
+}
+
+model CourseSyllabus{
+  id String @id @default(cuid())
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  week Int
+  title String
+  description String?
+  topics String[]
+  readings String[]
+  assignments String[]
+  notes String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([semesterCourseId, week])
+}
+
+model CourseMaterial{
+  id String @id @default(cuid())
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  title String
+  description String?
+  type MaterialType
+  category String
+  url String?
+  fileName String?
+  fileSize String?
+  fileId String?
+  file File? @relation(fields: [fileId], references: [id])
+  isVisible Boolean @default(true)
+  downloadCount Int @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum MaterialType {
+  FILE
+  LINK
+  VIDEO
+  DOCUMENT
+}
+
+model CourseAssignment{
+  id String @id @default(cuid())
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  title String
+  description String
+  dueDate DateTime
+  totalPoints Int
+  files String[] // Array of file URLs
+  status AssignmentStatus @default(ACTIVE)
+  submissions AssignmentSubmission[]
+  course String?
+  courseCode String?
+  dueTime String?
+  instructions String[]
+  attachments String[]
+  allowLateSubmissions Boolean @default(true)
+  
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+enum AssignmentStatus {
+  ACTIVE
+  CLOSED
+  DRAFT
+}
+
+model CourseAnnouncement{
+  id String @id @default(cuid())
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  title String
+  content String
+  priority AnnouncementPriority @default(MEDIUM)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum AnnouncementPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model CourseUpload{
+  id String @id @default(cuid())
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  name String
+  fileName String
+  fileSize String
+  fileType String
+  fileUrl String
+  fileId String?
+  file File? @relation(fields: [fileId], references: [id])
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+model Message {
+  id String @id @default(cuid())
+  content String
+  
+  conversationId String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Sender can be teacher or student
+  senderTeacherId String?
+  senderStudentId String?
+  senderTeacher Teacher? @relation("SenderTeacher", fields: [senderTeacherId], references: [id], onDelete: Cascade)
+  senderStudent Student? @relation("SenderStudent", fields: [senderStudentId], references: [id], onDelete: Cascade)
+  
+  // Message status
+  isEdited Boolean @default(false)
+  editedAt DateTime?
+  isDeleted Boolean @default(false)
+  deletedAt DateTime?
+  
+  // Relations
+  attachments MessageAttachment[]
+  readReceipts MessageReadReceipt[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([conversationId])
+  @@index([senderTeacherId])
+  @@index([senderStudentId])
+  @@index([createdAt])
+}
+model MessageReadReceipt {
+  id String @id @default(cuid())
+  
+  messageId String
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  // Reader can be teacher or student
+  readerTeacherId String?
+  readerStudentId String?
+  readerTeacher Teacher? @relation("ReaderTeacher", fields: [readerTeacherId], references: [id], onDelete: Cascade)
+  readerStudent Student? @relation("ReaderStudent", fields: [readerStudentId], references: [id], onDelete: Cascade)
+  
+  readAt DateTime @default(now())
+  
+  @@unique([messageId, readerTeacherId])
+  @@unique([messageId, readerStudentId])
+  @@index([messageId])
+  @@index([readerTeacherId])
+  @@index([readerStudentId])
+}
+// Add these models to your existing Prisma schema
+
+// Discussion Group - Created when a course is active
+model DiscussionGroup {
+  id String @id @default(cuid())
+  name String
+  description String?
+  type DiscussionGroupType
+  isActive Boolean @default(true)
+  
+  // Course relation - group is created when course is active
+  semesterCourseId String @unique
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  conversations Conversation[]
+  memberships DiscussionGroupMembership[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([semesterCourseId])
+}
+
+enum DiscussionGroupType {
+  COURSE_GROUP
+  STUDY_GROUP
+  PROJECT_GROUP
+}
+
+// Group membership - tracks who is in which group
+model DiscussionGroupMembership {
+  id String @id @default(cuid())
+  
+  groupId String
+  group DiscussionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // User can be either teacher or student
+  teacherId String?
+  studentId String?
+  teacher Teacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  role MemberRole @default(MEMBER)
+  joinedAt DateTime @default(now())
+  isActive Boolean @default(true)
+  
+  @@unique([groupId, teacherId])
+  @@unique([groupId, studentId])
+  @@index([groupId])
+  @@index([teacherId])
+  @@index([studentId])
+}
+
+enum MemberRole {
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+// Conversation - can be group or private
+model Conversation {
+  id String @id @default(cuid())
+  title String
+  type ConversationType
+  isActive Boolean @default(true)
+  
+  // For group conversations
+  groupId String?
+  group DiscussionGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  
+  // For private conversations - track participants
+  participants ConversationParticipant[]
+  messages Message[]
+  
+  lastMessageAt DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([groupId])
+  @@index([type])
+  @@index([lastMessageAt])
+}
+
+enum ConversationType {
+  GROUP
+  PRIVATE
+}
+
+// Track participants in conversations (mainly for private chats)
+model ConversationParticipant {
+  id String @id @default(cuid())
+  
+  conversationId String
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  // Participant can be teacher or student
+  teacherId String?
+  studentId String?
+  teacher Teacher? @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  student Student? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  joinedAt DateTime @default(now())
+  lastReadAt DateTime?
+  isActive Boolean @default(true)
+  
+  @@unique([conversationId, teacherId])
+  @@unique([conversationId, studentId])
+  @@index([conversationId])
+  @@index([teacherId])
+  @@index([studentId])
+}
+
+
+
+// Message attachments
+model MessageAttachment {
+  id String @id @default(cuid())
+  
+  messageId String
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  
+  fileId String
+  file File @relation(fields: [fileId], references: [id])
+  
+  name String
+  size String
+  type String
+  
+  createdAt DateTime @default(now())
+  
+  @@index([messageId])
+  @@index([fileId])
+}
+
+
+// Student Enrollment Model
+model StudentEnrollment {
+  id String @id @default(cuid())
+  
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  enrollmentDate DateTime @default(now())
+  status String @default("active") // active, unenrolled, completed
+  grade String?
+  progress Int? // 0-100
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([studentId, semesterCourseId])
+  @@index([studentId])
+  @@index([semesterCourseId])
+}
+model CourseExam {
+  id String @id @default(cuid())
+  
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  title String
+  description String
+  examDate DateTime
+  duration Int // Duration in minutes
+  totalPoints Int
+  status ExamStatus @default(SCHEDULED)
+  instructions String?
+  
+  // Relations
+  questions ExamQuestion[]
+  submissions ExamSubmission[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([semesterCourseId])
+  @@index([examDate])
+}
+
+enum ExamStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+// Exam Question Model
+model ExamQuestion {
+  id String @id @default(cuid())
+  
+  examId String
+  exam CourseExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  
+  question String
+  type QuestionType
+  options String[] // For multiple choice questions
+  correctAnswer String?
+  points Int
+  order Int @default(1)
+  
+  // Relations
+  answers ExamAnswer[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([examId])
+}
+
+enum QuestionType {
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+  ESSAY
+  FILL_IN_BLANK
+}
+
+// Exam Submission Model
+model ExamSubmission {
+  id String @id @default(cuid())
+  
+  examId String
+  exam CourseExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  submittedAt DateTime @default(now())
+  status SubmissionStatus @default(SUBMITTED)
+  grade Int?
+  feedback String?
+  gradedAt DateTime?
+  gradedBy String? // Teacher ID
+  
+  // Relations
+  answers ExamAnswer[]
+  files ExamSubmissionFile[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([examId, studentId])
+  @@index([examId])
+  @@index([studentId])
+}
+
+// Exam Answer Model
+model ExamAnswer {
+  id String @id @default(cuid())
+  
+  submissionId String
+  submission ExamSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  questionId String
+  question ExamQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  
+  answer String
+  isCorrect Boolean?
+  pointsEarned Int?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([submissionId, questionId])
+  @@index([submissionId])
+  @@index([questionId])
+}
+
+// Exam Submission File Model
+model ExamSubmissionFile {
+  id String @id @default(cuid())
+  
+  submissionId String
+  submission ExamSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  fileId String
+  file File @relation(fields: [fileId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@index([submissionId])
+  @@index([fileId])
+}
+
+// Assignment Submission Model
+model AssignmentSubmission {
+  id String @id @default(cuid())
+  
+  assignmentId String
+  assignment CourseAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  submissionText String?
+  submittedAt DateTime @default(now())
+  status SubmissionStatus @default(SUBMITTED)
+  grade Int?
+  feedback String?
+  gradedAt DateTime?
+  gradedBy String? // Teacher ID
+  
+  // Relations
+  files AssignmentSubmissionFile[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+}
+
+// Assignment Submission File Model
+model AssignmentSubmissionFile {
+  id String @id @default(cuid())
+  
+  submissionId String
+  submission AssignmentSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  
+  fileId String
+  file File @relation(fields: [fileId], references: [id])
+  
+  createdAt DateTime @default(now())
+  
+  @@index([submissionId])
+  @@index([fileId])
+}
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+  GRADED
+  RETURNED
+}
+
+model CourseGrade {
+  id String @id @default(cuid())
+  
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  grade String // A, B, C, D, F, etc.
+  gradePoints Decimal? // 4.0 scale
+  percentage Decimal?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([studentId, semesterCourseId])
+  @@index([studentId])
+  @@index([semesterCourseId])
+}
+
+// Course Attendance Model
+model CourseAttendance {
+  id String @id @default(cuid())
+  
+  studentId String
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  semesterCourseId String
+  semesterCourse SemesterCourse @relation(fields: [semesterCourseId], references: [id], onDelete: Cascade)
+  
+  date DateTime
+  status AttendanceStatus
+  notes String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([studentId, semesterCourseId, date])
+  @@index([studentId])
+  @@index([semesterCourseId])
+  @@index([date])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+// Add this to your existing schema.prisma file
+
+model Notification {
+  id String @id @default(cuid())
+  title String
+  message String
+  type NotificationType
+  priority NotificationPriority
+  target NotificationTarget
+  targetDetails String?
+  
+  // Creator information
+  createdById String
+  createdByType UserRole
+  createdBy String // Name of creator
+  
+  // Scheduling and status
+  scheduledFor DateTime?
+  status NotificationStatus @default(DRAFT)
+  
+  // Delivery tracking
+  recipients Int?
+  readCount Int @default(0)
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sentAt DateTime?
+  
+  // Relations
+  readReceipts NotificationReadReceipt[]
+  
+  @@index([status])
+  @@index([type])
+  @@index([target])
+  @@index([createdAt])
+}
+
+model NotificationReadReceipt {
+  id String @id @default(cuid())
+  
+  notificationId String
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  
+  // Reader can be any user type
+  readerId String
+  readerType UserRole
+  readerName String
+  
+  readAt DateTime @default(now())
+  
+  @@unique([notificationId, readerId])
+  @@index([notificationId])
+  @@index([readerId])
+}
+
+enum NotificationType {
+  ANNOUNCEMENT
+  ALERT
+  REMINDER
+  SYSTEM
+  ACADEMIC
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationTarget {
+  ALL
+  STUDENTS
+  TEACHERS
+  STAFF
+  DEPARTMENT
+}
+
+enum NotificationStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  FAILED
+}
